@@ -1,0 +1,10 @@
+{
+  "enabled": true,
+  "startHour": 3,
+  "endHour": 6,
+  "idleMinutes": 10,
+  "probes": [
+    ["/usr/bin/python3", "/absolute/path/to/t3code-addons/activity-probe.py"],
+    ["/usr/bin/ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "user@remote-host", "/usr/bin/python3", "/absolute/path/to/t3code-addons/activity-probe.py"]
+  ]
+}

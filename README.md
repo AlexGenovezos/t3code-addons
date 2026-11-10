@@ -16,13 +16,14 @@ The add-on includes:
 - **CLIProxy quotas:** account tiers, remaining usage, reset times, and pooled totals weighted where plan allowances are known.
 - **Claude proxy limit reporting:** confirmed pool-reset times for new Claude CLIProxy sessions.
 - **Automatic reconnection:** reattach after T3 restarts with its debugging port.
+- **Overnight desktop updates:** optionally install official T3 updates during a quiet 3–6 a.m. window.
 
 This is an unofficial add-on. It does not modify the app: the official build keeps auto-updating as normal.
 
 ## How it works
 
 1. `launch.sh` starts `T3 Code (Nightly)` with `--remote-debugging-port=9333`, Chromium's standard DevTools port. The port listens on localhost only.
-2. `watch.mjs` waits for the debugging endpoint and reconnects after restarts. `inject.mjs` connects to that port over the Chrome DevTools Protocol. It adds `switcher.js` to every T3 Code window, including new windows and reloads. The injector exits when the app quits; the watcher waits for it to return.
+2. `watch.mjs` waits for the debugging endpoint and reconnects after restarts. `inject.mjs` connects to that port over the Chrome DevTools Protocol. It adds the switcher, quota panel, and activity tracker to every T3 Code window, including new windows and reloads. The injector exits when the app quits; the watcher waits for it to return.
 3. `switcher.js` is plain page JavaScript. It:
    - records which threads you open
    - reads titles and icons from the sidebar
@@ -67,7 +68,7 @@ The injector logs to `~/Library/Logs/t3code-addons.log`. Set `T3_CDP_PORT` to us
 
 ## Caveats
 
-- **Restarts need the debugging port.** The watcher reconnects automatically when T3 restarts with the port. If an update or normal launch drops the flag, quit T3 when your agents are finished and reopen through the launcher. The add-on never quits T3 for you.
+- **Restarts need the debugging port.** The watcher reconnects automatically when T3 restarts with the port. If an update or normal launch drops the flag, quit T3 when your agents are finished and reopen through the launcher. The launcher never quits T3 for you; explicitly enabling overnight updates authorizes an idle restart inside its configured window.
 - **Local programs can control the app.** While the debugging port is open, any process on your Mac can drive the app through it. It isn't reachable from the network.
 - **Only threads in the sidebar appear.** The switcher reads the sidebar for titles and icons and for which threads are still active, so settled, archived and deleted threads drop out automatically.
 - **App updates can break it.** It depends on T3 Code's sidebar markup (`li[data-thread-item]`, the `sidebar-settled-header` shelf) and hash routes (`#/<environmentId>/<threadId>`). If the app changes those, the switcher will need updating.
@@ -109,12 +110,32 @@ To stop UI injection, terminate only the helper identified by `.inject.pid` afte
 
 This builds on the tier, weighting and pool-recovery approaches proposed in upstream T3 PRs [#19982](https://github.com/pingdotgg/t3code/pull/19982), [#13675](https://github.com/pingdotgg/t3code/pull/13675) and [#27214](https://github.com/pingdotgg/t3code/pull/27214). It does not patch stock T3's Usage page or app bundle.
 
+## Overnight desktop updates
+
+Copy `overnight-config.example.json` to `overnight-config.json` (gitignored), change the probe paths and SSH host to your installation, then launch **T3 Code Add-ons**. With no config this feature is off. Set `enabled` to `false` to pause it; config changes take effect on the next one-minute poll.
+
+The default window is **3:00–6:00 a.m. in the Mac's local timezone**, with at least ten continuously observed quiet minutes. Only the official T3 desktop app is updated; linked servers, providers, and this add-on are not automatically upgraded.
+
+Before checking/downloading a release and again before installing it, the helper requires:
+
+- No active or queued runs, provider turns, pending approvals/questions, subagents, background commands/tasks, or unfinished orchestration effects on any checked host.
+- Every enabled environment in T3's saved connection catalog and its local backends covered by a fresh, explicitly idle probe. A new or unreachable environment blocks the update until its probe is configured or the environment is disabled in T3.
+- No recent keyboard/mouse activity on the Mac, no recent input in any T3 window, and no nonempty composer currently rendered in those windows.
+- No activity revision change during the quiet period, and no automation due in the next ten minutes. Sleep or a long polling gap starts the quiet period again.
+
+`activity-probe.py` reads T3's V2 SQLite database **read-only** with a short query deadline, returning only environment ID, idle status, and event revision. It uses an upstream partial index to avoid scanning historical tool payloads. Missing files, an unsupported schema, or failed probes defer the update. Python 3 is required on each host. The optional argument is an absolute state directory (default `~/.t3/userdata`). SSH must already authenticate noninteractively and have a verified host key; never put passwords in the config.
+
+T3's normal desktop bridge checks, downloads, and installs the prepared release. The helper honors the selected update channel and attempts at most one installation per local calendar day, recording it in `.overnight-state.json`. It never forces an update or suppresses T3's policies. The activity check and install are separate operations in stock T3, so they cannot form an atomic lock against a new remote run starting at the last instant.
+
+The Mac must be awake and T3 running through the add-on launcher with its debugging port. This feature does not wake the Mac or reopen an app you closed. The watcher reconnects after an update if the port survives; if T3's updater drops the flag, reopen through **T3 Code Add-ons** when your agents are finished. No force-quit fallback is used. Decisions appear in `~/Library/Logs/t3code-addons.log`.
+
 ## Test
 
 Quota, stream forwarding, shutdown, timeout and origin-isolation tests use only Node:
 
 ```sh
-node --test test/quota.test.mjs test/relay.test.mjs
+node --test test/*.test.mjs
+python3 -m unittest discover -s test -p '*_test.py'
 ```
 
 `test/run.sh` loads the switcher into a mock T3 Code window in a throwaway Electron app. It then drives the keyboard over CDP and checks:

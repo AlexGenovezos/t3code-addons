@@ -3,9 +3,10 @@
 // Stays connected (injected scripts live as long as the CDP session) and exits when the app quits.
 import { readFileSync } from "node:fs";
 import { createQuotaBridge } from "./quota-bridge.mjs";
+import { createOvernightUpdater } from "./overnight-update.mjs";
 
 const PORT = Number(process.env.T3_CDP_PORT ?? 9333);
-const source = ["switcher.js", "quota-panel.js"].map((file) => readFileSync(new URL(`./${file}`, import.meta.url), "utf8")).join("\n");
+const source = ["switcher.js", "quota-panel.js", "overnight-page.js"].map((file) => readFileSync(new URL(`./${file}`, import.meta.url), "utf8")).join("\n");
 const isAppPage = (info) => info.type === "page" && info.url.startsWith("t3code:");
 
 async function browserWsUrl() {
@@ -78,3 +79,7 @@ await new Promise((r) => ws.addEventListener("open", r, { once: true }));
 await send("Target.setDiscoverTargets", { discover: true });
 const { targetInfos } = await send("Target.getTargets");
 await Promise.all(targetInfos.map(inject));
+
+const overnight = createOvernightUpdater({ send, sessions: () => injected });
+setInterval(() => void overnight.tick(), 60000);
+void overnight.tick();
