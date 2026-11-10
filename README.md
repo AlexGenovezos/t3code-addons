@@ -1,4 +1,4 @@
-# T3 Code Ctrl+Tab and CLIProxy quotas
+# T3 Code Add-ons
 
 A VS Code–style most-recently-used thread switcher and optional CLIProxy quota panel for the [T3 Code](https://github.com/pingdotgg/t3code) desktop app (macOS, Nightly).
 
@@ -9,6 +9,13 @@ A VS Code–style most-recently-used thread switcher and optional CLIProxy quota
 Rows show the project's favicon, the thread title and the project name.
 
 Settled threads are left out: only threads above the sidebar's **Settled** shelf are offered. If you unsettle one, it comes back.
+
+The add-on includes:
+
+- **Ctrl-Tab thread switching:** jump between recently opened active threads.
+- **CLIProxy quotas:** account tiers, remaining usage, reset times, and pooled totals weighted where plan allowances are known.
+- **Claude proxy limit reporting:** confirmed pool-reset times for new Claude CLIProxy sessions.
+- **Automatic reconnection:** reattach after T3 restarts with its debugging port.
 
 This is an unofficial add-on. It does not modify the app: the official build keeps auto-updating as normal.
 
@@ -29,22 +36,34 @@ This is an unofficial add-on. It does not modify the app: the official build kee
 Requires macOS, Node.js 22+ (for the built-in `WebSocket`), and `T3 Code (Nightly)` in `/Applications`.
 
 ```sh
-git clone https://github.com/AlexGenovezos/t3code-ctrl-tab.git
-cd t3code-ctrl-tab
+git clone https://github.com/AlexGenovezos/t3code-addons.git
+cd t3code-addons
 ./install.sh
 ```
 
-This builds `~/Applications/T3 Code Ctrl-Tab.app`, a launcher that runs `launch.sh` from your clone.
+This builds `~/Applications/T3 Code Add-ons.app`, a launcher that runs `launch.sh` from your clone.
+
+### Updating an existing installation
+
+The project was previously named **T3 Code Ctrl-Tab** (`t3code-ctrl-tab`). GitHub redirects the old repository URL. Keep your existing checkout directory in place, especially if the Claude companion is installed, then run these commands from it:
+
+```sh
+git remote set-url origin https://github.com/AlexGenovezos/t3code-addons.git
+git pull --ff-only
+./install.sh
+```
+
+The installer replaces a recognized old launcher from this checkout with a compatibility link to **T3 Code Add-ons**, preserving its original under `~/Library/Application Support/t3code-addons/launcher-backups/`. Existing shortcuts to that path still work. Updating the launcher does not restart T3 or running agents.
 
 ## Use
 
 1. Quit T3 Code. Quitting stops its bundled server and any running agents.
-2. Open **T3 Code Ctrl-Tab** instead of the regular icon.
+2. Open **T3 Code Add-ons** instead of the regular icon.
 3. Open a couple of threads. The switcher only knows threads you've opened since installing it.
 
 If T3 Code is already running without the debug port, the launcher shows an alert instead of quitting it for you.
 
-The injector logs to `~/Library/Logs/t3-ctrl-tab.log`. Set `T3_CDP_PORT` to use a different port.
+The injector logs to `~/Library/Logs/t3code-addons.log`. Set `T3_CDP_PORT` to use a different port.
 
 ## Caveats
 
@@ -55,7 +74,7 @@ The injector logs to `~/Library/Logs/t3-ctrl-tab.log`. Set `T3_CDP_PORT` to use 
 
 ## Optional CLIProxy quotas
 
-Open the same **T3 Code Ctrl-Tab** launcher, then click **CLIProxy** at the bottom right. The separate panel shows account tier labels, shared five-hour and weekly quotas, model-scoped weekly limits, and reset times. It refreshes each minute while open.
+Open the same **T3 Code Add-ons** launcher, then click **CLIProxy** at the bottom right. The separate panel shows account tier labels, shared five-hour and weekly quotas, model-scoped weekly limits, and reset times. It refreshes each minute while open.
 
 Create `quota-config.json` next to `launch.sh` (gitignored; use permissions `0600`):
 

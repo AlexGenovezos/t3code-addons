@@ -27,7 +27,7 @@
     if (typeof window.__t3QuotaRequest === "function") {
       get("status").textContent = "Refreshing…";
       window.__t3QuotaRequest("read");
-    } else get("status").textContent = "Reconnect through the T3 Code Ctrl-Tab launcher to load quotas.";
+    } else get("status").textContent = "Reconnect through the T3 Code Add-ons launcher to load quotas.";
   };
   const show = (value) => {
     open = value;
