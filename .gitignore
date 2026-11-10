@@ -3,3 +3,5 @@ HANDOFF.md
 test/.ud/
 test/*.log
 .DS_Store
+quota-config.json
+.relay-originals/
