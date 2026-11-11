@@ -54,7 +54,13 @@ export const pageSnapshot = `async () => {
   const disabled = new Set(catalog.disabledEnvironmentIds);
   const local = bridge.getLocalEnvironmentBootstraps();
   if (!Array.isArray(local)) throw new Error('Unknown local environments');
-  const ids = [...local.map(value=>value.id), ...catalog.targets.map(value=>value.environmentId)].filter(id=>!disabled.has(id));
+  // A local bootstrap id is a desktop alias ("primary"); probes report the server's own id.
+  const localIds = await Promise.all(local.map(async value => {
+    const response = await fetch(new URL('/.well-known/t3/environment', value.httpBaseUrl), {cache:'no-store'});
+    if (!response.ok) throw new Error('Local environment unavailable');
+    return (await response.json()).environmentId;
+  }));
+  const ids = [...localIds, ...catalog.targets.map(value=>value.environmentId)].filter(id=>!disabled.has(id));
   if (!ids.length || ids.some(id=>typeof id!=='string' || !id)) throw new Error('Missing environment identity');
   return {environmentIds:[...new Set(ids)].sort(),inputIdleMs:addon.inputIdleMs(),draft:addon.hasDraft(),update:await bridge.getUpdateState()};
 }`;

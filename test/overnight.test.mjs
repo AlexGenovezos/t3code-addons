@@ -129,17 +129,37 @@ test("checks and downloads through the official bridge without installing an unp
 import vm from "node:vm";
 import { pageSnapshot } from "../overnight-update.mjs";
 
+const snapshotContext = ({ local = [{ id: "primary", httpBaseUrl: "http://127.0.0.1:3773/" }], disabled = ["disabled"], fetch = async (url) => ({ ok: String(url) === "http://127.0.0.1:3773/.well-known/t3/environment", json: async () => ({ environmentId: "mac" }) }) } = {}) => vm.createContext({ URL, fetch, window: {
+  __t3Overnight: { inputIdleMs: () => 3600000, hasDraft: () => false },
+  desktopBridge: {
+    getConnectionCatalog: async () => JSON.stringify({ schemaVersion: 1, targets: [{ environmentId: "remote" }, { environmentId: "disabled" }], disabledEnvironmentIds: disabled, credentials: [{ credential: { token: "never-export-me" } }] }),
+    getLocalEnvironmentBootstraps: () => local,
+    getUpdateState: async () => ({ enabled: true, status: "downloaded" }),
+    installUpdate: async () => { throw new Error("must not install during reads"); },
+  },
+} });
+
 test("renderer snapshot covers local and enabled remote environments without returning catalog credentials", async () => {
-  const context = vm.createContext({ window: {
-    __t3Overnight: { inputIdleMs: () => 3600000, hasDraft: () => false },
-    desktopBridge: {
-      getConnectionCatalog: async () => JSON.stringify({ schemaVersion: 1, targets: [{ environmentId: "remote" }, { environmentId: "disabled" }], disabledEnvironmentIds: ["disabled"], credentials: [{ credential: { token: "never-export-me" } }] }),
-      getLocalEnvironmentBootstraps: () => [{ id: "mac" }],
-      getUpdateState: async () => ({ enabled: true, status: "downloaded" }),
-      installUpdate: async () => { throw new Error("must not install during reads"); },
-    },
-  } });
-  const result = await vm.runInContext(`(${pageSnapshot})()`, context);
+  const result = await vm.runInContext(`(${pageSnapshot})()`, snapshotContext());
   assert.deepEqual(Array.from(result.environmentIds), ["mac", "remote"]);
   assert.ok(!JSON.stringify(result).includes("never-export-me"));
+});
+
+test("renderer snapshot resolves a local bootstrap alias to the environment ID its server reports", async () => {
+  // Desktop T3 labels its own backend "primary"; activity probes report the server's real ID.
+  const result = await vm.runInContext(`(${pageSnapshot})()`, snapshotContext());
+  assert.ok(!result.environmentIds.includes("primary"));
+  assert.ok(result.environmentIds.includes("mac"));
+});
+
+test("renderer snapshot honors a disabled local environment by its real ID", async () => {
+  const result = await vm.runInContext(`(${pageSnapshot})()`, snapshotContext({ disabled: ["mac"] }));
+  assert.deepEqual(Array.from(result.environmentIds), ["disabled", "remote"]);
+});
+
+test("renderer snapshot fails when a local environment cannot report its ID", async () => {
+  for (const fetch of [async () => ({ ok: false, json: async () => ({}) }), async () => ({ ok: true, json: async () => ({ environmentId: "" }) }), async () => { throw new Error("offline"); }]) {
+    await assert.rejects(vm.runInContext(`(${pageSnapshot})()`, snapshotContext({ fetch })));
+  }
+  await assert.rejects(vm.runInContext(`(${pageSnapshot})()`, snapshotContext({ local: [{ id: "primary" }] })));
 });
