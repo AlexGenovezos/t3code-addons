@@ -88,7 +88,7 @@ Create `quota-config.json` next to `launch.sh` (gitignored; use permissions `060
 
 Use your proxy's reachable address on a remote Mac. The management key remains in the Node helper and is never injected into T3's page. Only account names, plans, usage and reset metadata are sent to the panel. Use a trusted private connection to the proxy.
 
-Claude shared five-hour capacity is weighted Pro = 1, Max 5× = 5, Max 20× = 20. Weekly Claude allowances and unknown Team/Business ratios are not assumed to follow those multipliers: the panel explicitly shows an account average when a pool includes an unknown ratio. Known Codex Plus/Pro ratios use estimates from the upstream weighting proposal. Pooled five-hour totals account for a spent shared weekly quota; model-specific headroom is shown separately. Partial reads are marked.
+Claude shared five-hour capacity is weighted Pro = 1, Max 5× = 5, Max 20× = 20, Team Standard = 1.25, Team Premium = 6.25 (Anthropic's [published per-session multiples](https://support.claude.com/en/articles/9266767-what-is-the-team-plan); Team seats are read from the profile's seat tier). Weekly Claude allowances and unknown ratios (Business Premium, Enterprise) are not assumed to follow those multipliers: the panel explicitly shows an account average when a pool includes an unknown ratio. Known Codex Plus/Pro ratios use estimates from the upstream weighting proposal; Standard Business counts as Plus, matching OpenAI's [published limits](https://learn.chatgpt.com/docs/pricing). Pooled five-hour totals account for a spent shared weekly quota; model-specific headroom is shown separately. Partial reads are marked.
 
 ### Claude limit reporting companion
 

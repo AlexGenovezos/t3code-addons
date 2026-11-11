@@ -17,7 +17,11 @@ export function claudePlan(profile) {
   const multiplier = /_(5|20)x$/.exec(org?.rate_limit_tier ?? "")?.[1];
   if (type === "claude_max") return multiplier ? `Max ${multiplier}×` : "Max";
   if (type === "claude_pro") return "Pro";
-  if (type === "claude_team") return multiplier ? `Team ${multiplier}×` : "Team";
+  if (type === "claude_team") {
+    const seat = /_(standard|premium)$/.exec(org?.seat_tier ?? "")?.[1];
+    if (seat) return seat === "premium" ? "Team Premium" : "Team Standard";
+    return multiplier ? `Team ${multiplier}×` : "Team";
+  }
   if (type === "claude_enterprise") return "Enterprise";
   return "Subscription";
 }
@@ -29,9 +33,11 @@ const codexPlans = {
 
 export function planWeight(account, window) {
   if (account.provider === "claude" && window === "session") {
-    return { Pro: 1, "Max 5×": 5, "Max 20×": 20 }[account.plan];
+    // Team seats: support.claude.com/en/articles/9266767 (per-session allowance relative to Pro).
+    return { Pro: 1, "Max 5×": 5, "Max 20×": 20, "Team Standard": 1.25, "Team Premium": 6.25 }[account.plan];
   }
-  if (account.provider === "codex") return { Plus: 1, "Pro 100": 5, "Pro 200": 20 }[account.plan];
+  // Standard Business shares Plus's published limits (learn.chatgpt.com/docs/pricing).
+  if (account.provider === "codex") return { Plus: 1, "Pro 100": 5, "Pro 200": 20, Business: 1 }[account.plan];
 }
 
 const percent = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100;

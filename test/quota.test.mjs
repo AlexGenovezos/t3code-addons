@@ -14,6 +14,31 @@ test("profile tiers distinguish Pro, Max 5× and Max 20×", () => {
   assert.equal(claudePlan(null), "Subscription");
 });
 
+test("Team seat tiers are labeled from the profile's seat tier", () => {
+  const team = (seat_tier, rate_limit_tier) => claudePlan({ organization: { organization_type: "claude_team", seat_tier, rate_limit_tier } });
+  assert.equal(team("team_standard", "default_raven"), "Team Standard");
+  assert.equal(team("team_bendep_nonprofit_premium", "default_claude_max_5x"), "Team Premium");
+  assert.equal(team(undefined, "default_raven"), "Team");
+});
+
+test("Team seats weigh 1.25× and 6.25× Pro per session", () => {
+  // support.claude.com/en/articles/9266767: Standard 1.25x, Premium 6.25x the Pro per-session allowance.
+  const pool = pooledWindow([account("Team Standard", 100), account("Team Premium", 51), account("Pro", 100)], "session");
+  assert.equal(pool.weighted, true);
+  assert.deepEqual(pool.members.map((member) => member.weight), [1.25, 6.25, 1]);
+  assert.equal(pool.remaining, 36);
+  const weekly = [account("Team Premium", 0), account("Pro", 100)].map((a) => ({ ...a, windows: { weekly: a.windows.session } }));
+  assert.equal(pooledWindow(weekly, "weekly").weighted, false);
+});
+
+test("Business seats weigh the same as Plus", () => {
+  // learn.chatgpt.com/docs/pricing lists identical limits for Plus and Standard Business.
+  const codex = (plan, used) => ({ ...account(plan, used), provider: "codex" });
+  const pool = pooledWindow([codex("Plus", 0), codex("Business", 44), codex("Business", 1)], "session");
+  assert.equal(pool.weighted, true);
+  assert.deepEqual(pool.members.map((member) => member.weight), [1, 1, 1]);
+});
+
 test("a spent Max 20× contributes twenty Pro allowances to the pool", () => {
   const pool = pooledWindow([account("Max 20×", 100), account("Max 5×", 82)], "session");
   assert.equal(pool.remaining, 4);
@@ -22,7 +47,7 @@ test("a spent Max 20× contributes twenty Pro allowances to the pool", () => {
 });
 
 test("weekly and unknown tiers stay explicitly unweighted", () => {
-  assert.equal(pooledWindow([account("Team", 100), account("Pro", 0)], "session").weighted, false);
+  assert.equal(pooledWindow([account("Subscription", 100), account("Pro", 0)], "session").weighted, false);
   const weekly = [account("Max 20×", 100), account("Pro", 0)].map((a) => ({ ...a, windows: { weekly: a.windows.session } }));
   assert.equal(pooledWindow(weekly, "weekly").remaining, 50);
   assert.equal(pooledWindow(weekly, "weekly").weighted, false);
